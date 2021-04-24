@@ -40,7 +40,7 @@ uses
 
 type
 
-  TFigletDrawMode = (fdmFull, fdmFitted, fdmSmush,fdmSmushU);
+  TFigletDrawMode = (fdmFull, fdmFitted, fdmSmush, fdmSmushU);
   TFigletAlign = (faLeft, faCenter, faRight, faLeft2R);
 
   TFigletFont = class;
@@ -74,14 +74,14 @@ type
     FLineEndText: string;
     FLineWidth: integer;
     FAdditionalSpaces: integer;
-    FontSmushMode:integer;  //<default options for the font.
+    FontSmushMode: integer;  //<default options for the font.
     SmushMode: integer;
     function FindCharCodeLineStart(aCharCode: integer): integer;
     procedure ReadHeader;
     function DrawChar(aCharCode: integer; aStartPos: integer): integer;
     function SmushChars(aRow: integer; aLIndex: integer; aRIndex: integer): char;
     function FindCharCodeWidth(LineStart: integer): integer;
-    function FindKerning:integer;
+    function FindKerning: integer;
   public
     Output: TStringList;
     constructor Create(aFontFileName: string); virtual;
@@ -105,14 +105,14 @@ uses
 
 const
   MAX_LINE_LENGTH = 200;
-  SM_SMUSH=128;
-  SM_KERN=64;
-  SM_EQUAL=1;
-  SM_LOWLINE=2;
-  SM_HIERARCHY=4;
-  SM_PAIR=8;
-  SM_BIGX=16;
-  SM_HARDBLANK=32;
+  SM_SMUSH = 128;
+  SM_KERN = 64;
+  SM_EQUAL = 1;
+  SM_LOWLINE = 2;
+  SM_HIERARCHY = 4;
+  SM_PAIR = 8;
+  SM_BIGX = 16;
+  SM_HARDBLANK = 32;
 
 procedure TCharacter.Init(aCharCode: integer; aFont: TFigletFont);
 begin
@@ -122,6 +122,12 @@ begin
   if aCharCode <> 0 then
   begin
     LineStart := aFont.FindCharCodeLineStart(aCharCode);
+    //check for fonts with errors.
+    if (LineStart + aFont.Height - 1) >= aFont.FLines.Count then
+    begin
+      LineStart := 0;
+      Exit;
+    end;
     Width := aFont.FindCharCodeWidth(LineStart);
   end;
 end;
@@ -286,7 +292,7 @@ begin
 end;
 
 // 121  0512 octal  0x1da2 hexadecimal
-function ReadNumber(const aStr: string; var aPos: integer;var aReadedOk:boolean): integer;
+function ReadNumber(const aStr: string; var aPos: integer; var aReadedOk: boolean): integer;
 var
   wC: char;
   wIsNegative: boolean;
@@ -295,7 +301,7 @@ var
   wH: integer;
 begin
   Result := 0;
-  aReadedOk:=false;
+  aReadedOk := False;
   wL := length(aStr);
   if (aPos < 1) or (aPos > wL) then
     exit;
@@ -346,36 +352,36 @@ begin
   end;
   if wIsNegative then
     Result := -Result;
-  aReadedOk:=true;
+  aReadedOk := True;
 end;
 
 procedure TFigletFont.ReadHeader;
 var
   wText: string;
   wI: integer;
-  wReadResult:boolean;
+  wReadResult: boolean;
 begin
   wText := Flines[0];
   HardBlank := wText[6];
   wI := 7;
-  Height := ReadNumber(wText, wI,wReadResult);
-  Baseline := ReadNumber(wText, wI,wReadResult);
-  Max_Length := ReadNumber(wText, wI,wReadResult);
-  Old_Layout := ReadNumber(wText, wI,wReadResult);
-  Comment_Lines := ReadNumber(wText, wI,wReadResult);
-  Print_Direction := ReadNumber(wText, wI,wReadResult);
-  Full_Layout := ReadNumber(wText, wI,wReadResult);
-  FontSmushMode:=Full_Layout;
-  if wReadResult=false then
+  Height := ReadNumber(wText, wI, wReadResult);
+  Baseline := ReadNumber(wText, wI, wReadResult);
+  Max_Length := ReadNumber(wText, wI, wReadResult);
+  Old_Layout := ReadNumber(wText, wI, wReadResult);
+  Comment_Lines := ReadNumber(wText, wI, wReadResult);
+  Print_Direction := ReadNumber(wText, wI, wReadResult);
+  Full_Layout := ReadNumber(wText, wI, wReadResult);
+  FontSmushMode := Full_Layout;
+  if wReadResult = False then
   begin
-    if Old_Layout=0 then
+    if Old_Layout = 0 then
       FontSmushMode := SM_KERN
-    else if Old_Layout<0 then
-      FontSmushMode :=0
+    else if Old_Layout < 0 then
+      FontSmushMode := 0
     else
       FontSmushMode := (Old_Layout and 31) or SM_SMUSH;
   end;
-  Codetag_Count := ReadNumber(wText, wI,wReadResult);
+  Codetag_Count := ReadNumber(wText, wI, wReadResult);
 end;
 
 constructor TFigletFont.Create(aFontFileName: string);
@@ -404,7 +410,7 @@ const
 var
   wI: integer;
   wJ: integer;
-  wReadResult:boolean;
+  wReadResult: boolean;
 begin
   Result := Comment_Lines + 1 + (Ord(CHAR_NOT_EXIST_IN_FONT) - 32) * Height;
   if aCharCode >= 32 then
@@ -440,6 +446,8 @@ var
 begin
   wS := FLines[LineStart];
   wLenWS := length(wS);
+  if wLenWS <= 0 then
+    Exit(wLenWS);
   wEndChar := wS[wLenWS];
   Dec(wLenWS);
   while (wLenWS > 0) and (wS[wLenWS] = wEndChar) do
@@ -453,12 +461,12 @@ var
 begin
   if (LastChar.LineStart = 0) then
     Exit(FLines[CurrentChar.LineStart + aRow][aRIndex]);
-  if  (aLIndex < 1) or (aLIndex > LastChar.Width) then
-    wLChar:=' '
+  if (aLIndex < 1) or (aLIndex > LastChar.Width) then
+    wLChar := ' '
   else
     wLchar := FLines[LastChar.LineStart + aRow][aLIndex];
-  if  (aRIndex < 1) or (aRIndex > CurrentChar.Width) then
-    wRChar:=' '
+  if (aRIndex < 1) or (aRIndex > CurrentChar.Width) then
+    wRChar := ' '
   else
     wRchar := FLines[CurrentChar.LineStart + aRow][aRIndex];
   if wLchar = ' ' then Exit(wRChar);
@@ -469,21 +477,21 @@ begin
   //* Disallows overlapping if the previous character */
   //* or the current character has a width of 1 or zero. */
 
-  if (SmushMode and SM_HARDBLANK)<>0 then
+  if (SmushMode and SM_HARDBLANK) <> 0 then
   begin
     if (wLChar = Hardblank) and (wRChar = Hardblank) then Exit(wLChar);
     if (wLChar = Hardblank) or (wRChar = Hardblank) then Exit(#0);
   end;
-  if (SmushMode and SM_EQUAL)<>0 then
+  if (SmushMode and SM_EQUAL) <> 0 then
   begin
     if wLChar = wRChar then Exit(wLChar);
   end;
-  if (SmushMode and SM_LOWLINE)<>0 then
+  if (SmushMode and SM_LOWLINE) <> 0 then
   begin
     if (wLChar = '_') and (Pos(wRChar, '|/\[]{}()<>') > 0) then Exit(wRChar);
     if (wRChar = '_') and (Pos(wLChar, '|/\[]{}()<>') > 0) then Exit(wLChar);
   end;
-  if (SmushMode and SM_HIERARCHY)<>0 then
+  if (SmushMode and SM_HIERARCHY) <> 0 then
   begin
     if (wLChar = '|') and (Pos(wRChar, '/\[]{}()<>') > 0) then Exit(wRChar);
     if (wRChar = '|') and (Pos(wLChar, '/\[]{}()<>') > 0) then Exit(wLChar);
@@ -496,7 +504,7 @@ begin
     if (Pos(wLChar, '()') > 0) and (Pos(wRChar, '<>`') > 0) then Exit(wRChar);
     if (Pos(wRChar, '()') > 0) and (Pos(wLChar, '<>') > 0) then Exit(wLChar);
   end;
-  if (SmushMode and SM_PAIR)<>0 then
+  if (SmushMode and SM_PAIR) <> 0 then
   begin
     if (wLChar = '[') and (wRChar = ']') then Exit('|');
     if (wRChar = '[') and (wLChar = ']') then Exit('|');
@@ -505,7 +513,7 @@ begin
     if (wLChar = '(') and (wRChar = ')') then Exit('|');
     if (wRChar = '(') and (wLChar = ')') then Exit('|');
   end;
-  if (SmushMode and SM_BIGX)<>0 then
+  if (SmushMode and SM_BIGX) <> 0 then
   begin
     if (wLChar = '/') and (wRChar = '\') then Exit('|');
     if (wRChar = '/') and (wLChar = '\') then Exit('Y');
@@ -517,21 +525,21 @@ end;
 
 // contamos los espacios en blanco a la derecha de lastchar y a la izquierda
 // de current char.
-function TFigletFont.FindKerning:integer;
+function TFigletFont.FindKerning: integer;
 var
   wMinL, wMinR, wMinRL: integer;
-  wF: integer;
+  wF, wLS: integer;
   wLK, wRK: integer;
   wS: string;
 begin
-  Result:=0;
-  if (CurrentChar.LineStart=0) or (FDrawMode = fdmFull) then
+  Result := 0;
+  if (CurrentChar.LineStart = 0) or (FDrawMode = fdmFull) then
   begin
     CurrentChar.LK := 0;
     LastChar.RK := 0;
     Exit;
   end;
-  Result:=99999;
+  Result := 99999;
   wMinL := -99999;
   wMinR := 99999;
   wMinRL := 99999;
@@ -541,7 +549,8 @@ begin
   begin
     wRK := 0;
     wS := FLines[CurrentChar.LineStart + wF];
-    while wS[wRK + 1] = ' ' do
+    wLS := length(wS);
+    while (wRK < wLS) and (wS[wRK + 1] = ' ') do
       Inc(wRK);
     if wRK < wMinR then
       wMinR := wRK;
@@ -549,29 +558,30 @@ begin
     if LastChar.LineStart > 0 then
     begin
       wS := FLines[LastChar.LineStart + wF];
-      while (wLK < LastChar.Width) and (wS[LastChar.Width - wLK] = ' ') do
+      wLS := length(wS);
+      while ((LastChar.Width - wLK) <= wLS) and (wLK < LastChar.Width) and (wS[LastChar.Width - wLK] = ' ') do
         Inc(wLK);
 
       if FDrawMode = fdmSmush then
       begin
-        if SmushChars(wF, LastChar.Width - wLK-1, wRK+1) <> #0 then
+        if SmushChars(wF, LastChar.Width - wLK - 1, wRK + 1) <> #0 then
           Inc(wLK);
       end;
-      if FDrawMode= fdmSmushU then
+      if FDrawMode = fdmSmushU then
       begin
-        if SmushChars(wF, -1, wRK+1) <> #0 then
+        if SmushChars(wF, -1, wRK + 1) <> #0 then
           Inc(wLK);
       end;
 
     end;
     if (wRK + wLK) <= wMinRL then
     begin
-      if wLK>wMinL then
+      if wLK > wMinL then
         wMinL := wLK;
       wMinRL := wLK + wRK;
     end;
-    if (wRK+wLK)<Result then
-      Result:=wRK+wLK;
+    if (wRK + wLK) < Result then
+      Result := wRK + wLK;
   end;
   CurrentChar.LK := wMinR;
   if LastChar.LineStart > 0 then
@@ -589,34 +599,39 @@ var
   wS: string;
   wTemp: string;
   wCharCount: integer;
-  wKerning:integer;
+  wKerning: integer;
 begin
   Result := 0;
   LastChar := CurrentChar;
   CurrentChar.Init(aCharCode, Self);
   wLine := CurrentChar.LineStart;
-  if (wLine <= 0) or (wLine > FLines.Count) then
+  if (wLine <= 0) or ((wLine+Pred(Height)) > FLines.Count) then
     Exit;
-  wKerning:=FindKerning;
+  wKerning := FindKerning;
   for wJ := 0 to Pred(Height) do
   begin
     wCharCount := -wKerning;
     wS := FLines[wLine + wJ];
+    if Length(wS) < CurrentChar.Width then
+      continue;
     wTemp := Output[wJ];
     for wCI := 1 to CurrentChar.Width do
     begin
       if (aStartPos + wCharCount) > length(wTemp) then
         break;
       if (FDrawMode = fdmSmush) then
-        wC := SmushChars(wJ, LastChar.Width + wCharCount+1, wCI)
-      else  if (FDrawMode=fdmSmushU) then
+        wC := SmushChars(wJ, LastChar.Width + wCharCount + 1, wCI)
+      else if (FDrawMode = fdmSmushU) then
         wC := SmushChars(wJ, -1, wCI)
       else
         wC := wS[wCI];
-      if wC=#0 then
+      if wC = #0 then
         wC := wS[wCI];
-      if (wC <> ' ') and (wC <> Hardblank) and (wC <>#0) then
-        wTemp[aStartPos + wCharCount] := wC;
+      if (wC <> ' ') and (wC <> Hardblank) and (wC <> #0) then
+      begin
+        if ((aStartPos + wCharCount) <= length(wTemp)) and ((aStartPos + wCharCount) > 0) then
+          wTemp[aStartPos + wCharCount] := wC;
+      end;
       Inc(wCharCount);
     end;
     Output[wJ] := wTemp;
@@ -631,21 +646,21 @@ var
   wI: integer;
   wS: string;
   wCurrentPos: integer;
-  wWidth:Integer;
+  wWidth: integer;
   wCP: pansichar;
   wCPL: integer;
   wCharCode: integer;
   wPadCount: integer;
-  wLineLength:integer;
+  wLineLength: integer;
 begin
   //SmushMode:= SM_HARDBLANK or SM_EQUAL or SM_LOWLINE or SM_HIERARCHY or SM_PAIR or SM_BIGX;
-  SmushMode:= FontSmushMode;
+  SmushMode := FontSmushMode;
   wL := Length(aText);
   Output.Clear;
   wS := FLineStartText;
-  wLineLength:= wL * Max_Length + wL*FAdditionalSpaces;
+  wLineLength := wL * Max_Length + wL * FAdditionalSpaces;
   if wLIneLength > MAX_LINE_LENGTH then
-    wLineLength:=MAX_LINE_LENGTH;
+    wLineLength := MAX_LINE_LENGTH;
   if wL > 0 then
     wS := wS + StringOfChar(' ', wLineLength);
   for wI := 1 to Height do
@@ -657,8 +672,8 @@ begin
   while wL > 0 do
   begin
     wCharCode := Utf8decodeDGP(wCP, wCPL);
-    wWidth:=DrawChar(wCharCode, wCurrentPos);
-    if wWidth>0 then
+    wWidth := DrawChar(wCharCode, wCurrentPos);
+    if wWidth > 0 then
       wCurrentPos := wCurrentPos + wWidth;
     if FDrawMode = fdmFull then
       wCurrentPos := wCurrentPos + FAdditionalSpaces;
@@ -674,8 +689,9 @@ begin
     if (FLineWidth <= 0) or (FAlign = faLeft) then
       Output[wI] := Copy(Output[wI], 1, wCurrentPos - 1) + FLineEndText
     else if FAlign = faCenter then
-      Output[wI] := FLineStartText + StringOfChar(' ', wPadCount div 2) + Copy(Output[wI], 1 + Length(
-        FLineStartText), wCurrentPos - 1 - Length(FLineStartText)) + StringOfChar(' ', wPadCount - (wPadCount div 2)) + FLineEndText
+      Output[wI] := FLineStartText + StringOfChar(' ', wPadCount div 2) + Copy(Output[wI],
+        1 + Length(FLineStartText), wCurrentPos - 1 - Length(FLineStartText)) +
+        StringOfChar(' ', wPadCount - (wPadCount div 2)) + FLineEndText
     else if FAlign = faRight then
       Output[wI] := FLineStartText + StringOfChar(' ', wPadCount) + Copy(Output[wI], 1 + Length(
         FLineStartText), wCurrentPos - 1 - Length(FLineStartText)) + FLineEndText
