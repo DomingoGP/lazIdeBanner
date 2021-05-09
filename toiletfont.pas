@@ -1,5 +1,9 @@
 { Draws ascii art text using fonts from www.figlet.org.
 
+accepts ascii 32-127  y unicode fonts   figlet(.flf) and  toilet (.tlf)
+
+
+
   Copyright (C) 2021 Domingo Galmés dgalmesp@gmail.com
 
   This library is free software; you can redistribute it and/or modify it
@@ -28,7 +32,7 @@
   Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1335, USA.
 }
 
-unit figletfont;
+unit toiletfont;
 
 {$mode ObjFPC}{$H+}{$M+}
 {$modeswitch advancedrecords}
@@ -46,7 +50,7 @@ type
   TFigletFont = class;
 
   TCharacter = record
-    Character: char;
+    Character: unicodechar;
     LineStart: integer;
     Width: integer;
     LK: integer;
@@ -57,7 +61,8 @@ type
   TFigletFont = class
   protected
     FLines: TStringList;
-    Hardblank: char;
+    FTempOut:array of unicodestring;
+    Hardblank: unicodechar;
     Height: integer;
     Baseline: integer;
     Max_Length: integer;
@@ -79,7 +84,8 @@ type
     function FindCharCodeLineStart(aCharCode: integer): integer;
     procedure ReadHeader;
     function DrawChar(aCharCode: integer; aStartPos: integer): integer;
-    function SmushChars(aRow: integer; aLIndex: integer; aRIndex: integer): char;
+    function SmushChars(const aCurrentCharRow:unicodestring;
+      const aLastCharRow:unicodestring;aLIndex: integer; aRIndex: integer): unicodechar;
     function FindCharCodeWidth(LineStart: integer): integer;
     function FindKerning: integer;
   public
@@ -217,11 +223,12 @@ var
   wCount: integer;
   wIndex: integer;
   wSignature: array [0..10] of ansichar;
+const
+  MAGIC = 'flf2a';
+  MAGIC2 = 'tlf2a';
 
   //flf2a
-  function TestSignature(aPtr: pansichar): boolean;
-  const
-    MAGIC = 'flf2a';
+  function TestSignature(aPtr: pansichar;const aSignature:ansistring): boolean;
   var
     wI: integer;
   begin
@@ -229,7 +236,7 @@ var
     Result := False;
     while wI <= 5 do
     begin
-      if aPtr^ <> MAGIC[wI] then
+      if aPtr^ <> aSignature[wI] then
         Exit;
       Inc(aPtr);
       Inc(wI);
@@ -244,7 +251,7 @@ begin
   try
     wFStream.Read(wSignature[0], 5);
     //flf2a
-    if TestSignature(wSignature) then  //ya esta descomprimido.
+    if TestSignature(wSignature,MAGIC) or TestSignature(wSignature,MAGIC2) then  //ya esta descomprimido.
     begin
       wFStream.Position := 0;
       FLines.Text := StreamToString(wFStream);
@@ -267,7 +274,7 @@ begin
           wZipper.UnzipFile(wIndex, wStream);
           wStream.Position := 0;
           wStream.Read(wSignature[0], 5);
-          if TestSignature(wSignature) then
+          if TestSignature(wSignature,MAGIC) or TestSignature(wSignature,MAGIC2) then
           begin
             wStream.Position := 0;
             FLines.Text := StreamToString(wStream);
@@ -398,6 +405,7 @@ destructor TFigletFont.Destroy;
 begin
   FLines.Free;
   Output.Free;
+  SetLength(FTempOut,0);
   inherited;
 end;
 
@@ -440,11 +448,11 @@ end;
 
 function TFigletFont.FindCharCodeWidth(LineStart: integer): integer;
 var
-  wS: string;
-  wEndChar: char;
+  wS: unicodestring;
+  wEndChar: unicodechar;
   wLenWS: integer;
 begin
-  wS := FLines[LineStart];
+  wS := Utf8Decode(FLines[LineStart]);
   wLenWS := length(wS);
   if wLenWS <= 0 then
     Exit(wLenWS);
@@ -460,20 +468,20 @@ begin
   Result := wLenWS;
 end;
 
-function TFigletFont.SmushChars(aRow: integer; aLIndex: integer; aRIndex: integer): char;
+function TFigletFont.SmushChars(const aCurrentCharRow:unicodestring;const aLastCharRow:unicodestring; aLIndex: integer; aRIndex: integer): unicodechar;
 var
-  wLchar, wRchar: char;
+  wLchar, wRchar: unicodechar;
 begin
   if (LastChar.LineStart = 0) then
-    Exit(FLines[CurrentChar.LineStart + aRow][aRIndex]);
+    Exit(aCurrentCharRow[aRIndex]);
   if (aLIndex < 1) or (aLIndex > LastChar.Width) then
     wLChar := ' '
   else
-    wLchar := FLines[LastChar.LineStart + aRow][aLIndex];
+    wLchar := aLastCharRow[aLIndex];
   if (aRIndex < 1) or (aRIndex > CurrentChar.Width) then
     wRChar := ' '
   else
-    wRchar := FLines[CurrentChar.LineStart + aRow][aRIndex];
+    wRchar := aCurrentCharRow[aRIndex];
   if wLchar = ' ' then Exit(wRChar);
   if wRchar = ' ' then Exit(wLChar);
   if FDrawMode = fdmFitted then Exit(#0);
@@ -535,7 +543,7 @@ var
   wMinL, wMinR, wMinRL: integer;
   wF, wLS: integer;
   wLK, wRK: integer;
-  wS: string;
+  wSCC,wSLC: unicodestring;
 begin
   Result := 0;
   if (CurrentChar.LineStart = 0) or (FDrawMode = fdmFull) then
@@ -553,28 +561,28 @@ begin
   for wF := 0 to Pred(Height) do
   begin
     wRK := 0;
-    wS := FLines[CurrentChar.LineStart + wF];
-    wLS := length(wS);
-    while (wRK < wLS) and (wS[wRK + 1] = ' ') do
+    wSCC := Utf8Decode(FLines[CurrentChar.LineStart + wF]);
+    wLS := length(wSCC);
+    while (wRK < wLS) and (wSCC[wRK + 1] = ' ') do
       Inc(wRK);
     if wRK < wMinR then
       wMinR := wRK;
     wLK := 0;
-    if LastChar.LineStart > 0 then
+    if (LastChar.LineStart > 0) and ((LastChar.LineStart+Pred(Height)) < FLines.Count) then
     begin
-      wS := FLines[LastChar.LineStart + wF];
-      wLS := length(wS);
-      while ((LastChar.Width - wLK) <= wLS) and (wLK < LastChar.Width) and (wS[LastChar.Width - wLK] = ' ') do
+      wSLC := Utf8Decode(FLines[LastChar.LineStart + wF]);
+      wLS := length(wSLC);
+      while ((LastChar.Width - wLK) <= wLS) and (wLK < LastChar.Width) and (wSLC[LastChar.Width - wLK] = ' ') do
         Inc(wLK);
 
       if FDrawMode = fdmSmush then
       begin
-        if SmushChars(wF, LastChar.Width - wLK - 1, wRK + 1) <> #0 then
+        if SmushChars(wSCC,wSLC, LastChar.Width - wLK - 1, wRK + 1) <> #0 then
           Inc(wLK);
       end;
       if FDrawMode = fdmSmushU then
       begin
-        if SmushChars(wF, -1, wRK + 1) <> #0 then
+        if SmushChars(wSCC,wSLC, -1, wRK + 1) <> #0 then
           Inc(wLK);
       end;
 
@@ -599,10 +607,11 @@ function TFigletFont.DrawChar(aCharCode: integer; aStartPos: integer): integer;
 var
   wLine: integer;
   wJ: integer;
-  wC: char;
+  wC: unicodechar;
   wCI: integer;
-  wS: string;
-  wTemp: string;
+  wUCurrentCharRow: unicodestring;
+  wTemp: unicodestring;
+  wULastCharRow: UnicodeString;
   wCharCount: integer;
   wKerning: integer;
 begin
@@ -616,22 +625,26 @@ begin
   for wJ := 0 to Pred(Height) do
   begin
     wCharCount := -wKerning;
-    wS := FLines[wLine + wJ];
-    if Length(wS) < CurrentChar.Width then
+    wUCurrentCharRow := Utf8decode(FLines[wLine + wJ]);
+    if (LastChar.LineStart <= 0) or ((LastChar.LineStart+Pred(Height)) > FLines.Count)then
+      wULastCharRow:=''
+    else
+      wULastCharRow:=Utf8Decode(FLines[LastChar.LineStart+wJ]);
+    if Length(wUCurrentCharRow) < CurrentChar.Width then
       continue;
-    wTemp := Output[wJ];
+    wTemp := FTempOut[wJ];
     for wCI := 1 to CurrentChar.Width do
     begin
       if (aStartPos + wCharCount) > length(wTemp) then
         break;
       if (FDrawMode = fdmSmush) then
-        wC := SmushChars(wJ, LastChar.Width + wCharCount + 1, wCI)
+        wC := SmushChars(wUCurrentCharRow,wULastCharRow, LastChar.Width + wCharCount + 1, wCI)
       else if (FDrawMode = fdmSmushU) then
-        wC := SmushChars(wJ, -1, wCI)
+        wC := SmushChars(wUCurrentCharRow,wULastCharRow, -1, wCI)
       else
-        wC := wS[wCI];
+        wC := wUCurrentCharRow[wCI];
       if wC = #0 then
-        wC := wS[wCI];
+        wC := wUCurrentCharRow[wCI];
       if (wC <> ' ') and (wC <> Hardblank) and (wC <> #0) then
       begin
         if ((aStartPos + wCharCount) <= length(wTemp)) and ((aStartPos + wCharCount) > 0) then
@@ -639,9 +652,16 @@ begin
       end;
       Inc(wCharCount);
     end;
-    Output[wJ] := wTemp;
+    FTempOut[wJ] := wTemp;
   end;
   Result := wCharCount;
+end;
+
+
+Function StringOfUChar(c : UnicodeChar;l : SizeInt) : UnicodeString;
+begin
+  SetLength(Result,l);
+  FillWord(Pointer(Result)^,Length(Result),Word(c));
 end;
 
 
@@ -649,7 +669,9 @@ procedure TFigletFont.DrawText(aText: string);
 var
   wL: integer;
   wI: integer;
-  wS: string;
+  wS: unicodestring;
+  wULineStartText:unicodestring;
+  wULineEndText:unicodestring;
   wCurrentPos: integer;
   wWidth: integer;
   wCP: pansichar;
@@ -662,14 +684,23 @@ begin
   SmushMode := FontSmushMode;
   wL := Length(aText);
   Output.Clear;
-  wS := FLineStartText;
+  SetLength(FTempOut,Height);
+  wULineEndText:=Utf8decode(FLineEndText);
+  wULineStartText:=Utf8decode(FLineStartText);
+  wS := wULineStartText;
   wLineLength := wL * Max_Length + wL * FAdditionalSpaces;
   if wLIneLength > MAX_LINE_LENGTH then
     wLineLength := MAX_LINE_LENGTH;
   if wL > 0 then
-    wS := wS + StringOfChar(' ', wLineLength);
+  begin
+    //wS := wS + Utf8Decode(StringOfChar(' ', wLineLength));
+    wS := wS + StringOfUChar(' ', wLineLength);
+  end;
   for wI := 1 to Height do
-    Output.Add(wS);
+  begin
+    FTempOut[wI-1]:=wS;
+    Output.Add(string(wS));
+  end;
   wCurrentPos := length(FLineStartText) + 1;
   CurrentChar.Init(0, Self);
   LastChar.Init(0, Self);
@@ -692,17 +723,18 @@ begin
   for wI := 0 to Pred(Height) do
   begin
     if (FLineWidth <= 0) or (FAlign = faLeft) then
-      Output[wI] := Copy(Output[wI], 1, wCurrentPos - 1) + FLineEndText
+      Output[wI] := Utf8Encode(Copy(FTempOut[wI], 1, wCurrentPos - 1) + wULineEndText)
     else if FAlign = faCenter then
-      Output[wI] := FLineStartText + StringOfChar(' ', wPadCount div 2) + Copy(Output[wI],
+      Output[wI] := Utf8Encode(wULineStartText + StringOfUChar(' ', wPadCount div 2) + Copy(FTempOut[wI],
         1 + Length(FLineStartText), wCurrentPos - 1 - Length(FLineStartText)) +
-        StringOfChar(' ', wPadCount - (wPadCount div 2)) + FLineEndText
+        StringOfUChar(' ', wPadCount - (wPadCount div 2)) + wULineEndText)
     else if FAlign = faRight then
-      Output[wI] := FLineStartText + StringOfChar(' ', wPadCount) + Copy(Output[wI], 1 + Length(
-        FLineStartText), wCurrentPos - 1 - Length(FLineStartText)) + FLineEndText
+      Output[wI] := Utf8Encode(wULineStartText + StringOfUChar(' ', wPadCount) + Copy(FTempOut[wI], 1 + Length(
+        FLineStartText), wCurrentPos - 1 - Length(FLineStartText)) + wULineEndText)
     else if FAlign = faLeft2R then
-      Output[wI] := Copy(Output[wI], 1, wCurrentPos - 1) + StringOfChar(' ', wPadCount) + FLineEndText;
+      Output[wI] := Utf8Encode(Copy(FTempOut[wI], 1, wCurrentPos - 1) + StringOfUChar(' ', wPadCount) + wULineEndText);
   end;
+  SetLength(FTempOut,0);
 end;
 
 end.

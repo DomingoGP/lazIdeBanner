@@ -9,7 +9,7 @@ interface
 
 uses
   figletfont, StreamUnzipper, frmbanner, lazbannerregisteride, 
-  lazbanneruiconsts, LazarusPackageIntf;
+  lazbanneruiconsts, toiletfont, LazarusPackageIntf;
 
 implementation
 

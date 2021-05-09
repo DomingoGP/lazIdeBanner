@@ -42,12 +42,13 @@ unit frmbanner;
 
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
+{.$define ONLY_ASCII_FONTS}
 
 interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Spin,
-  ExtCtrls, EditBtn;
+  ExtCtrls, EditBtn, SynEdit;
 
 {$IFDEF IDE_PLUGIN}
 const
@@ -81,11 +82,11 @@ type
     Label4: TLabel;
     Label5: TLabel;
     Label6: TLabel;
-    Memo1: TMemo;
     rgAlign: TRadioGroup;
     rgDrawMode: TRadioGroup;
     seSpaces: TSpinEdit;
     seLineLength: TSpinEdit;
+    Memo1: TSynEdit;
     procedure btnCopyClick(Sender: TObject);
     procedure btnInsertClick(Sender: TObject);
     procedure btnSaveDefaultsClick(Sender: TObject);
@@ -115,7 +116,11 @@ var
 implementation
 
 uses
-  Math, figletfont,
+  {$ifdef ONLY_ASCII_FONTS}
+  figletfont,
+  {$else}
+  toiletfont,   // supports more fonts types than figletfont.
+  {$endif}
   {$IFDEF IDE_PLUGIN}
   LazConfigStorage,lazbanneruiconsts, BaseIDEIntf, IDEMsgIntf, IDEExternToolIntf, lazideintf,
     // IdeIntf
@@ -272,6 +277,18 @@ begin
         end;
       until (FindNext(srSearch) <> 0);
     FindClose(srSearch);
+    {$ifndef ONLY_ASCII_FONTS}
+    if FindFirst(IncludeTrailingPathDelimiter(edFontDir.Text) + '*.tlf', faAnyFile, srSearch) = 0 then
+      repeat
+        if ((srSearch.Attr and faDirectory) = 0) and (srSearch.Name <> '.') and (srSearch.Name <> '..') then
+        begin
+          if srSearch.Name = aFontName then
+            wIndex := cbFonts.Items.Count;
+          cbFonts.Items.Add(srSearch.Name);
+        end;
+      until (FindNext(srSearch) <> 0);
+    FindClose(srSearch);
+    {$endif}
   finally
     cbFonts.Items.EndUpdate;
   end;

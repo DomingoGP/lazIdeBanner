@@ -21,8 +21,8 @@
     <Description Value="Insert banners in code editor using figlet fonts from www.figlet.org.
 After install you must setup the fonts directory and save settings."/>
     <License Value="Modified LGPL"/>
-    <Version Minor="1"/>
-    <Files Count="5">
+    <Version Minor="2"/>
+    <Files Count="6">
       <Item1>
         <Filename Value="figletfont.pas"/>
         <UnitName Value="figletfont"/>
@@ -44,19 +44,26 @@ After install you must setup the fonts directory and save settings."/>
         <Filename Value="lazbanneruiconsts.pas"/>
         <UnitName Value="lazbanneruiconsts"/>
       </Item5>
+      <Item6>
+        <Filename Value="toiletfont.pas"/>
+        <UnitName Value="toiletfont"/>
+      </Item6>
     </Files>
     <CompatibilityMode Value="True"/>
     <i18n>
       <EnableI18N Value="True"/>
       <EnableI18NForLFM Value="True"/>
     </i18n>
-    <RequiredPkgs Count="2">
+    <RequiredPkgs Count="3">
       <Item1>
-        <PackageName Value="IDEIntf"/>
+        <PackageName Value="SynEdit"/>
       </Item1>
       <Item2>
-        <PackageName Value="FCL"/>
+        <PackageName Value="IDEIntf"/>
       </Item2>
+      <Item3>
+        <PackageName Value="FCL"/>
+      </Item3>
     </RequiredPkgs>
     <UsageOptions>
       <UnitPath Value="$(PkgOutDir)"/>
